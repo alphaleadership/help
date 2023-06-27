@@ -18,4 +18,4 @@ function updateArticleIndexes(id) {
         // Mise à jour de la clé dans le localStorage
         localStorage.setItem(publicType, updatedKey);
       }
-    });
+    })}

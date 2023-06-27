@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auto NoteHebdo</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css"
+    />
+  </head>
+
+  <body onload="loadArticles()">
+    <noscript>
+      <p>
+        JavaScript est désactivé dans votre navigateur. Veuillez l'activer pour
+        profiter pleinement de cette application.
+      </p>
+    </noscript>
+    <section class="section" id="editor">
+      <div class="container">
+        <div class="columns">
+          <div class="column is-half" id="left-column">
+            <h1 class="title is-3">Enregistrer un article</h1>
+            <form
+              id="article-form"
+              onsubmit="event.preventDefault(); editMode ? updateArticle() : saveArticle();"
+            >
+              <input type="hidden" id="id" />
+              <div class="field">
+                <input
+                  type="text"
+                  id="title"
+                  class="input"
+                  maxlength="250"
+                  placeholder="Titre"
+                  required
+                />
+              </div>
+              <div class="field">
+                <textarea
+                  id="resume"
+                  class="textarea"
+                  maxlength="5000"
+                  placeholder="Résumé"
+                  required
+                ></textarea>
+              </div>
+              <div class="field">
+                <div class="control">
+                  <div class="select">
+                    <select id="categorie" required>
+                      <option value="1">Gestion des personnels</option>
+                      <option value="2">Scolarité</option>
+                      <option value="3">Enquêtes et pilotage</option>
+                      <option value="4">
+                        Intranet, référentiels et outils
+                      </option>
+                      <option value="5">Activités pédagogiques</option>
+                      <option value="6">Informations</option>
+                      <option value="7">Rappels</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="field">
+                <input id="link" class="input" type="url" placeholder="Lien" />
+              </div>
+              <div class="columns">
+                <div class="column">
+                  <div class="field">
+                    <label class="checkbox">
+                      <input id="pu1d-checkbox" type="checkbox" />
+                      Note hebdo 1er degré public
+                    </label>
+                  </div>
+                  <div class="field">
+                    <label class="checkbox">
+                      <input id="pr1d-checkbox" type="checkbox" />
+                      Note hebdo 1er degré privé
+                    </label>
+                  </div>
+                </div>
+
+                <div class="column">
+                  <div class="field">
+                    <label class="checkbox">
+                      <input id="pu2d-checkbox" type="checkbox" />
+                      Note hebdo 2d degré public
+                    </label>
+                  </div>
+                  <div class="field">
+                    <label class="checkbox">
+                      <input id="pr2d-checkbox" type="checkbox" />
+                      Note hebdo 2d degré privé
+                    </label>
+                  </div>
+                </div>
+
+                <div class="column">
+                  <div class="field">
+                    <label class="checkbox">
+                      <input id="lyc-checkbox" type="checkbox" />
+                      Note hebdo lycées
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div class="field is-grouped">
+                <div class="control">
+                  <button id="save-button" class="button is-primary">
+                    Enregistrer
+                  </button>
+                </div>
+                <div class="control">
+                  <button
+                    id="clear-button"
+                    class="button"
+                    onclick="resetForm()"
+                  >
+                    Réinitialiser
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="column is-half" id="right-column">
+            <h1 class="title is-3">Articles enregistrés</h1>
+            <div id="articles-list">
+              <!-- La liste des articles enregistrés sera affichée ici -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="section" id="generator">
+      <h1 class="title is-3">Générer les notes hebdo</h1>
+      <!-- Boutons pour récupérer les données du localstorage -->
+      <button id="pu1d" class="button filter-button" value="pu1d">
+        Note hebdo 1er degré public
+      </button>
+      <button id="pr1d" class="button filter-button" value="pr1d">
+        Note hebdo 1er degré privé
+      </button>
+      <button id="pu2d" class="button filter-button" value="pu2d">
+        Note hebdo 2d degré public
+      </button>
+      <button id="pr2d" class="button filter-button" value="pr2d">
+        Note hebdo 2d degré privé
+      </button>
+      <button id="lyc" class="button filter-button" value="lyc">
+        Note hebdo lycée
+      </button>
+
+ 
+        <!-- Les données générées seront insérées ici -->
+        <div id="article_content" style="border: 1px solid black" class="card mb-5">
+
+        </div>
+      
+
+    <script>
+      // -------------------------------------- //
+      // Application qui assiste à la création des différentes Notes Hebdo de la DSDEN de l'Eure
+      //
+      // --------------------------------------- //
+
+      // -------------------------------------- //
+      // Fonctions de l'éditeur
+      // -------------------------------------- //
+
+      let editMode = false; // Variable pour indiquer si nous sommes en mode édition ou non
+
+      // Fonction pour charger les articles depuis le local storage
+      function loadArticles() {
+        var articlesList = document.getElementById("articles-list");
+        articlesList.innerHTML = "";
+
+        if (localStorage.length !== 0) {
+          // Récupération des clés du localStorage commençant par "a"
+          var keysStartingWithA = [];
+          for (var i = 0; i < localStorage.length; i++) {
+            var key = localStorage.key(i);
+            if (key.startsWith("a")) {
+              keysStartingWithA.push(key);
+            }
+          }
+
+          // Vérification si aucune clé ne commence par "a"
+          if (keysStartingWithA.length === 0) {
+            // Création de l'élément de notification
+            var notificationElement = document.createElement("div");
+            notificationElement.setAttribute("class", "notification is-info");
+            notificationElement.innerHTML =
+              'Aucun article enregistré avec une clé commençant par "a".';
+
+            // Ajout de l'élément de notification à la liste des articles
+            articlesList.appendChild(notificationElement);
+          } else {
+            // Parcours des clés commençant par "a"
+            keysStartingWithA.forEach(function (key) {
+              var article = JSON.parse(localStorage.getItem(key));
+
+              // Création de l'élément d'affichage de l'article
+              var articleElement = document.createElement("div");
+              articleElement.setAttribute("class", "card mb-5");
+              articleElement.innerHTML =
+                '<header class="card-header"><p class="card-header-title">' +
+                article.title +
+                "</p></header>" +
+                '<div class="card-content"><p>' +
+                article.resume +
+                "</p></div>" +
+                '<footer class="card-footer"><a href="#" onclick="editArticle(\'' +
+                article.id +
+                '\')" class="card-footer-item">Modifier</a>' +
+                '<a href="#" onclick="deleteArticle(\'' +
+                article.id +
+                '\')" class="card-footer-item">Supprimer</a></footer>';
+
+              // Ajout de l'élément d'affichage à la liste des articles
+              articlesList.appendChild(articleElement);
+            });
+          }
+        }
+      }
+
+      // Fonction pour générer un identifiant unique pour un article
+      function generateId() {
+        var date = new Date();
+        return "a" + date.getTime(); // Utilisation du temps en millisecondes comme identifiant
+      }
+
+      // Fonction pour enregistrer un nouvel article dans le local storage
+      function saveArticle() {
+        var id = generateId();
+        var title = document.getElementById("title").value;
+        var resume = document.getElementById("resume").value;
+        var categorie = document.getElementById("categorie").value;
+        var link = document.getElementById("link").value;
+        var pu1d = document.getElementById("pu1d-checkbox").checked ? 1 : 0;
+        var pr1d = document.getElementById("pr1d-checkbox").checked ? 1 : 0;
+        var pu2d = document.getElementById("pu2d-checkbox").checked ? 1 : 0;
+        var pr2d = document.getElementById("pr2d-checkbox").checked ? 1 : 0;
+        var lyc = document.getElementById("lyc-checkbox").checked ? 1 : 0;
+
+        var article = {
+          id: id,
+          title: title,
+          resume: resume,
+          categorie: categorie,
+          link: link,
+          pu1d: pu1d,
+          pr1d: pr1d,
+          pu2d: pu2d,
+          pr2d: pr2d,
+          lyc: lyc,
+        };
+
+        // Enregistrement de l'article dans le local storage
+        localStorage.setItem(id, JSON.stringify(article));
+
+        var keysObject = createKeysObject(pu1d, pr1d, pu2d, pr2d, lyc);
+
+        // Appel de la fonction pour enregistrer les clés dans le localStorage
+        saveKeys(id, keysObject);
+
+        // Réinitialisation du formulaire
+        resetForm();
+
+        // Rechargement de la liste des articles
+        loadArticles();
+      }
+
+      // Fonction pour créer un objet JavaScript contenant uniquement les clés "pu1d", "pr1d", "pu2d", "pr2d" et "lyc" si leur valeur est égale à 1
+      function createKeysObject(pu1d, pr1d, pu2d, pr2d, lyc) {
+        var keysObject = {};
+        if (pu1d === 1) {
+          keysObject.pu1d = pu1d;
+        }
+        if (pr1d === 1) {
+          keysObject.pr1d = pr1d;
+        }
+        if (pu2d === 1) {
+          keysObject.pu2d = pu2d;
+        }
+        if (pr2d === 1) {
+          keysObject.pr2d = pr2d;
+        }
+        if (lyc === 1) {
+          keysObject.lyc = lyc;
+        }
+        return keysObject;
+      }
+
+        // Fonction pour enregistrer les clés dans le localStorage avec l'identifiant de l'article créé
+        function saveKeys(articleId, keysObject) {
+          for (var key in keysObject) {
+            if (keysObject.hasOwnProperty(key)) {
+              var storedValue = localStorage.getItem(key);
+              var updatedValue;
+              if (storedValue) {  
+                // Si une valeur est déjà stockée dans le localStorage pour la clé donnée, on la compile avec la nouvelle valeur
+                updatedValue = storedValue + "," + articleId;
+              } else {
+                // Sinon, on crée une nouvelle valeur avec l'identifiant de l'article créé
+                updatedValue = articleId;
+              }
+              localStorage.setItem(key, updatedValue);
+            }
+          }
+      }
+
+      // Fonction pour éditer un article
+      function editArticle(id) {
+        // Mettre à jour la variable editMode
+        editMode = true;
+        // Mettre à jour le texte du bouton d'enregistrement du formulaire
+        document.getElementById("save-button").textContent = "Mettre à jour";
+
+        var article = JSON.parse(localStorage.getItem(id));
+
+        // Remplissage du formulaire d'édition avec les données de l'article
+        document.getElementById("id").value = article.id;
+        document.getElementById("title").value = article.title;
+        document.getElementById("resume").value = article.resume;
+        document.getElementById("categorie").value = article.categorie;
+        document.getElementById("link").value = article.link;
+        document.getElementById("pu1d-checkbox").checked = article.pu1d;
+        document.getElementById("pr1d-checkbox").checked = article.pr1d;
+        document.getElementById("pu2d-checkbox").checked = article.pu2d;
+        document.getElementById("pr2d-checkbox").checked = article.pr2d;
+        document.getElementById("lyc-checkbox").checked = article.lyc;
+      }
+
+      // Fonction pour mettre à jour les données d'un article dans le local storage
+      function updateArticle() {
+        var id = document.getElementById("id").value;
+        var title = document.getElementById("title").value;
+        var resume = document.getElementById("resume").value;
+        var categorie = document.getElementById("categorie").value;
+        var link = document.getElementById("link").value;
+        var pu1d = document.getElementById("pu1d-checkbox").checked ? 1 : 0;
+        var pr1d = document.getElementById("pr1d-checkbox").checked ? 1 : 0;
+        var pu2d = document.getElementById("pu2d-checkbox").checked ? 1 : 0;
+        var pr2d = document.getElementById("pr2d-checkbox").checked ? 1 : 0;
+        var lyc = document.getElementById("lyc-checkbox").checked ? 1 : 0;
+
+        var updatedArticle = {
+          id: id,
+          title: title,
+          resume: resume,
+          categorie: categorie,
+          link: link,
+          pu1d: pu1d,
+          pr1d: pr1d,
+          pu2d: pu2d,
+          pr2d: pr2d,
+          lyc: lyc,
+        };
+
+        // Mise à jour de local storage avec les nouvelles données de l'article.
+        localStorage.setItem(id, JSON.stringify(updatedArticle));
+        // Réinitialisation du formulaire d'édition
+        resetForm();
+
+        // Rechargement de la liste des articles
+        loadArticles();
+      }
+
+      // Fonction pour réinitialiser le formulaire d'édition
+      function resetForm() {
+        document.getElementById("id").value = "";
+        document.getElementById("title").value = "";
+        document.getElementById("resume").value = "";
+        document.getElementById("categorie").value = "";
+        document.getElementById("link").value = "";
+        document.getElementById("pu1d-checkbox").checked = false;
+        document.getElementById("pr1d-checkbox").checked = false;
+        document.getElementById("pu2d-checkbox").checked = false;
+        document.getElementById("pr2d-checkbox").checked = false;
+        document.getElementById("lyc-checkbox").checked = false;
+
+        // Mettre à jour la variable editMode
+        editMode = false;
+        // Mettre à jour le texte du bouton d'enregistrement du formulaire
+        document.getElementById("save-button").textContent = "Enregistrer";
+      }
+
+      // Fonction pour supprimer un article du local storage
+      function deleteArticle(id) {
+        if (confirm("Êtes-vous sûr de vouloir supprimer cet article ?")) {
+          // Suppression de l'article
+          localStorage.removeItem(id);
+
+          // Mise à jour des indexes des articles
+          updateArticleIndexes(id);
+
+          // Rechargement des articles pour affichage.
+          loadArticles();
+        }
+      }
+
+      // Fonction pour mettre à jour les indexes des articles
+      function updateArticleIndexes(id) {
+        var publicTypes = ["pu1d", "pr1d", "pu2d", "pr2d", "lyc"];
+
+        // Parcours de chaque type de public
+        publicTypes.forEach(function (publicType) {
+          // Récupération de la clé correspondant au type de public
+          var key = localStorage.getItem(publicType);
+
+          // Vérification si la clé existe et contient l'id de l'article
+          if (key && key.includes(id)) {
+            // Suppression de l'id de l'article de la clé
+            var updatedKey = key.replace(id, "");
+
+            // Suppression des virgules en début et en fin de la clé
+            updatedKey = updatedKey.replace(/^,|,$/g, "");
+
+            // Mise à jour de la clé dans le localStorage
+            localStorage.setItem(publicType, updatedKey);
+          }
+        });
+      }
+
+      // -------------------------------------- //
+      // Fonctions du générateur
+      // -------------------------------------- //
+
+      // Fonction pour ajouter un écouteur d'événement aux boutons de choix
+      function generator() {
+        const buttons = document.querySelectorAll(".filter-button");
+        categorie_group = [];
+        article_group = [];
+        // Parcourir les boutons et ajouter un écouteur d'événement au clic
+        buttons.forEach((button, index) => {
+          button.onclick =  (event) => {
+            // Récupérer la valeur du bouton (correspondant au choix de filtre)
+            const buttonChoice = event.target.value;
+
+            // ID des articles du public sélectionné.
+            var articlesId = getDataFromLocalStorage(buttonChoice);
+
+            if (articlesId === null) {
+              // Clé non trouvée, ou sans données, ou avec une valeur vide, affichage d'une notification Bulma
+              var notificationElement = document.createElement("div");
+              notificationElement.setAttribute(
+                "class",
+                "notification is-warning"
+              );
+              notificationElement.innerHTML =
+                "Aucune donnée trouvée pour la clé : " + buttonChoice;
+              
+               var content = document.getElementById("generator")
+                content.appendChild(notificationElement);
+
+              // Suppression de la notification après 2 secondes avec un effet de disparition
+              setTimeout(function () {
+                notificationElement.classList.add("notification-fade-out");
+                setTimeout(function () {
+                  notificationElement.remove();
+                }, 1000);
+              }, 2000);
+            } else {
+                    var content = document.getElementById('article_content');
+                    var display_article = document.createElement('iframe');
+                    content.appendChild(display_article);
+
+                    var iframe_document = null; // Déclaration en dehors de la fonction onloads
+
+                    // faire charger le iframe avant son insertion
+                    display_article.onload = (function() {
+                     iframe_document = display_article.contentDocument.body;}())
+                        console.log(articlesId)
+              articlesId.forEach((id, index) => {
+   
+                  let list_id_json = localStorage.getItem(id);
+                list_id = JSON.parse(list_id_json);
+                var categorie_articles = document.getElementsByClassName('select')[0];
+                var options = categorie_articles.getElementsByTagName('option');
+                console.log('---------------------------')
+                console.log(options[1].value)
+                console.log('---------------------------')
+                for (var i = 0; i < options.length; i++) {
+                  console.log(options[i].innerHTML);
+                }
+                
+                // variables de retranscriptions 
+                title = list_id.title ;
+                resume = list_id.resume;
+                categorie = options[list_id.categorie-1].innerHTML;
+                link = list_id.link;
+                article_group.push(id);                
+                categorie_group.push(categorie);
+
+
+                // code html
+                htmlCode = '<div class="" >'+
+                  
+                   '<h1 align="cencer">'+categorie+ '<h1> '
+                  + '<a href="'+link+'">'+ title+'</a>'+ '<p class="">'+resume+'</p>'
+                  + 'DSDEN Eure - 24 bd Georges Chauvin - CS 22203 - 27022 Évreux CEDEX - 02 32 29 64 00 standard'
+                  
+                  
+                  
+                    +'</div>'
+                  
+                
+                // Créer un élément <pre> pour afficher le code source
+                const article = document.createElement('pre');
+                
+                // Convertir les caractères spéciaux en entités HTML
+                const encodedHtml = htmlCode.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                // Insérer le code source encodé dans l'élément <pre>
+                article.innerHTML = encodedHtml;
+                iframe_document.appendChild(article)
+                
+          
+             
+            
+              });
+
+                  const articlesParCategorie = {};
+
+                for (let i = 0; i < categorie_group.length; i++) {
+                  const categorie = categorie_group[i];
+                  const article = article_group[i];
+
+                  if (articlesParCategorie.hasOwnProperty(categorie)) {
+                    // La catégorie existe déjà dans l'objet, ajouter l'article au tableau correspondant
+                    articlesParCategorie[categorie].push(article);
+                  } else {
+                    // La catégorie n'existe pas encore dans l'objet, créer un nouveau tableau avec l'article
+                    articlesParCategorie[categorie] = [article];
+                  }
+                }
+                console.log('----------------a---------------------')
+                console.log(articlesParCategorie);
+                console.log('-----------------a--------------------')
+                localStorage.setItem(buttonChoice,JSON.stringify(articlesParCategorie))
+            }
+          };
+        });
+       
+    }
+
+      // Fonction pour récupérer les données du local storage pour une clé donnée
+      function getDataFromLocalStorage(public) {
+        // Récupération des données pour la clé donnée
+        var data = localStorage.getItem(public);
+
+        // Vérification si la clé existe dans le localStorage et si elle a une valeur
+        if (
+          !localStorage.hasOwnProperty(public) ||
+          data === null ||
+          data.trim() === ""
+        ) {
+          return null;
+        } else {
+          // Clé trouvée, récupération des données et conversion en tableau
+          data = data.split(",");
+          return data;
+        }
+      }
+
+      // -------------------------------------- //
+      // Fonctions appelées au chargement de la page.
+      // -------------------------------------- //
+
+      // Appeler la fonction pour ajouter les écouteurs d'événements aux boutons
+      generator();
+      // Récupération de la liste des articles au chargement de la page
+      loadArticles();
+    </script>
+  </body>
+</html>
